@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ratio Grid Studio</title>
+<title>Ad Sticker Print — Ratio Grid Studio</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Unbounded:wght@300;400;600;800&display=swap');
 
@@ -188,7 +188,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
 <div class="topbar">
   <div class="topbar-logo">▦ RATIO GRID</div>
   <div class="topbar-sep"></div>
-  <div class="topbar-stat">CANVAS <b id="hSize">1200 × 900 px</b></div>
+  <div class="topbar-stat">CANVAS <b id="hSize">5700 × 3900 px</b></div>
   <div class="topbar-sep"></div>
   <div class="topbar-stat">PHOTOS <b id="hCount">0</b></div>
   <div class="topbar-sep"></div>
@@ -214,21 +214,21 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
         <div class="sec-title">Canvas Size</div>
         <div class="field">
           <label>Width</label>
-          <input type="number" id="cW" value="1200" min="200" max="8000" step="10">
+          <input type="number" id="cW" value="19" min="1" max="200" step="0.1">
           <select id="cUnit" style="width:46px;flex:none">
             <option value="px">px</option>
             <option value="mm">mm</option>
-            <option value="in">in</option>
+            <option value="in" selected>in</option>
           </select>
         </div>
         <div class="field">
           <label>Height</label>
-          <input type="number" id="cH" value="900" min="200" max="8000" step="10">
+          <input type="number" id="cH" value="13" min="1" max="200" step="0.1">
           <span class="unit" id="cUnitLabel">px</span>
         </div>
         <div class="field">
           <label>DPI</label>
-          <input type="number" id="cDPI" value="96" min="72" max="600">
+          <input type="number" id="cDPI" value="300" min="72" max="600">
         </div>
         <div class="presets">
           <button class="pre" data-w="1920" data-h="1080">16:9<br>FHD</button>
@@ -237,6 +237,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
           <button class="pre" data-w="3508" data-h="2480">A4<br>Land</button>
           <button class="pre" data-w="2480" data-h="3508">A4<br>Port</button>
           <button class="pre" data-w="2560" data-h="1440">2K<br>16:9</button>
+          <button class="pre on" id="preAdSticker" data-w="5700" data-h="3900" style="grid-column:1/-1;border-color:var(--acc);background:rgba(212,240,96,.1);color:var(--acc)">★ Ad Sticker Print<br><span style="color:var(--mu2);font-size:8px">19×13 in · 300 PPI · 5700×3900px</span></button>
         </div>
         <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" id="btnApply">Apply Canvas</button>
       </div>
@@ -320,7 +321,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
         <button class="zb" id="zIn">+</button>
         <button class="zb txt" id="zFit">FIT</button>
       </div>
-      &nbsp;|&nbsp; CANVAS: <b id="tSize">1200 × 900</b>
+      &nbsp;|&nbsp; CANVAS: <b id="tSize">5700 × 3900</b>
       &nbsp;|&nbsp; TOTAL H: <b id="tTH">—</b>
     </div>
 
@@ -342,7 +343,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // STATE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-let canvasW = 1200, canvasH = 900, zoom = 0.67;
+let canvasW = 5700, canvasH = 3900, zoom = 0.67;
 let photos = []; // {id,name,src,natW,natH,ratio,rk}
 let rowOrder = []; // ratioKey order
 

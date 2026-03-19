@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ratio Grid Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Unbounded:wght@300;400;600;800&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0c0d0f;
+  --s1:#131417;
+  --s2:#1a1b20;
+  --s3:#21232a;
+  --bd:#2a2d38;
+  --bd2:#383c4a;
+  --tx:#dde0ea;
+  --mu:#5a5e6e;
+  --mu2:#7a7e90;
+  --acc:#d4f060;
+  --acc2:#60c8f0;
+  --acc3:#f06080;
+  --acc4:#c060f0;
+}
+
+body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* TOPBAR */
+.topbar{height:48px;background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0}
+.topbar-logo{font-family:'Unbounded',sans-serif;font-size:12px;font-weight:800;letter-spacing:.05em;color:var(--acc);white-space:nowrap}
+.topbar-stat{font-size:10px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.topbar-stat b{color:var(--tx);font-weight:400}
+.topbar-sep{width:1px;height:20px;background:var(--bd);flex-shrink:0}
+.topbar-right{margin-left:auto;display:flex;gap:6px}
+
+.btn{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .15s;white-space:nowrap}
+.btn-acc{background:var(--acc);border-color:var(--acc);color:#0c0d0f;font-weight:500}
+.btn-acc:hover{background:#e8ff80}
+.btn-ghost{background:transparent;border-color:var(--bd2);color:var(--mu2)}
+.btn-ghost:hover{border-color:var(--tx);color:var(--tx)}
+.btn-red{background:transparent;border-color:var(--bd);color:var(--mu)}
+.btn-red:hover{border-color:var(--acc3);color:var(--acc3)}
+.btn-sm{padding:4px 10px;font-size:9px}
+
+/* LAYOUT */
+.body{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:290px;min-width:290px;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-inner{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd2) transparent}
+
+.sec{padding:14px 16px;border-bottom:1px solid var(--bd)}
+.sec-title{font-size:9px;letter-spacing:.18em;color:var(--mu);text-transform:uppercase;margin-bottom:12px}
+
+/* Canvas controls */
+.field{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.field label{font-size:10px;color:var(--mu);width:46px;flex-shrink:0}
+.field input[type=number],.field select{flex:1;background:var(--bg);border:1px solid var(--bd);color:var(--tx);padding:5px 8px;font-size:11px;font-family:'DM Mono',monospace;border-radius:3px;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--acc)}
+.field .unit{font-size:10px;color:var(--mu);flex-shrink:0;width:28px}
+
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
+.pre{background:var(--bg);border:1px solid var(--bd);color:var(--mu);padding:5px 3px;font-size:9px;font-family:'DM Mono',monospace;border-radius:3px;cursor:pointer;text-align:center;line-height:1.6;transition:all .15s}
+.pre:hover{border-color:var(--acc);color:var(--acc)}
+.pre.on{border-color:var(--acc);background:rgba(212,240,96,.07);color:var(--acc)}
+
+/* Upload */
+.drop{border:2px dashed var(--bd2);border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.drop:hover,.drop.ov{border-color:var(--acc2);background:rgba(96,200,240,.04)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-ico{font-size:24px;margin-bottom:5px}
+.drop p{font-size:10px;color:var(--mu);line-height:1.6}
+
+/* Photo list */
+.plist{display:flex;flex-direction:column;gap:4px;margin-top:10px;max-height:180px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd2) transparent}
+.pcard{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:5px 8px}
+.pcard:hover{border-color:var(--bd2)}
+.pthumb{width:34px;height:34px;object-fit:cover;border-radius:2px;flex-shrink:0}
+.pinfo{flex:1;min-width:0}
+.pname{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx)}
+.pmeta{font-size:9px;color:var(--mu);margin-top:2px;display:flex;align-items:center;gap:5px}
+.rbadge{display:inline-block;padding:1px 5px;border-radius:2px;font-size:8px;font-weight:500;border:1px solid}
+.prm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:14px;padding:2px;flex-shrink:0}
+.prm:hover{color:var(--acc3)}
+
+/* ROW GROUP CARDS */
+.rg-list{display:flex;flex-direction:column;gap:6px}
+
+.rg-card{background:var(--s2);border:1px solid var(--bd);border-radius:6px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.rg-card.drag-over{border-color:var(--acc);box-shadow:0 0 0 2px rgba(212,240,96,.12)}
+.rg-card.dragging{opacity:.35}
+
+.rg-head{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:grab;background:var(--s3);border-bottom:1px solid var(--bd)}
+.rg-head:active{cursor:grabbing}
+.rg-ratio{font-family:'Unbounded',sans-serif;font-size:11px;font-weight:600}
+.rg-cnt{font-size:9px;color:var(--mu)}
+.rg-handle{margin-left:auto;color:var(--bd2);font-size:16px;line-height:1;cursor:grab}
+.rg-thumbrow{display:flex;gap:2px;padding:7px 10px 6px;flex-wrap:wrap}
+.rg-t{height:24px;border-radius:2px;object-fit:cover;flex-shrink:0}
+
+/* Per-row controls */
+.rg-controls{padding:8px 10px;display:flex;flex-direction:column;gap:6px;background:var(--bg);border-top:1px solid var(--bd)}
+.rc-row{display:flex;align-items:center;gap:8px}
+.rc-label{font-size:9px;color:var(--mu);width:60px;flex-shrink:0}
+.rc-input{flex:1;background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:4px 7px;font-size:10px;font-family:'DM Mono',monospace;border-radius:3px;outline:none}
+.rc-input:focus{border-color:var(--acc)}
+.rc-select{flex:1;background:var(--s2);border:1px solid var(--bd);color:var(--tx);padding:4px 7px;font-size:10px;font-family:'DM Mono',monospace;border-radius:3px;outline:none;cursor:pointer}
+.rc-unit{font-size:9px;color:var(--mu);flex-shrink:0}
+.rc-slider{flex:1;accent-color:var(--acc);cursor:pointer}
+.rc-slval{font-size:10px;color:var(--tx);width:36px;text-align:right;flex-shrink:0}
+
+/* WORKSPACE */
+.workspace{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{display:flex;align-items:center;gap:10px;padding:7px 16px;border-bottom:1px solid var(--bd);background:var(--s1);flex-shrink:0;font-size:10px;color:var(--mu)}
+.toolbar b{color:var(--tx);font-weight:400}
+.zg{display:flex;align-items:center;gap:4px}
+.zb{background:var(--bg);border:1px solid var(--bd);color:var(--tx);width:22px;height:22px;border-radius:3px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.zb:hover{border-color:var(--acc);color:var(--acc)}
+.zb.txt{width:auto;padding:0 7px;font-size:9px;letter-spacing:.06em}
+
+.canvas-wrap{flex:1;overflow:auto;padding:36px;display:flex;align-items:flex-start;justify-content:center;scrollbar-width:thin;scrollbar-color:var(--bd2) transparent}
+
+/* RULER */
+.rr-wrap{display:inline-flex;flex-direction:column}
+.rr-row{display:flex}
+.rr-corner{width:20px;height:20px;background:#0f1012;border:1px solid var(--bd);flex-shrink:0}
+.rr-h{height:20px;background:#0f1012;border:1px solid var(--bd);border-left:none;overflow:hidden;display:block}
+.rr-v{width:20px;background:#0f1012;border:1px solid var(--bd);border-top:none;overflow:hidden;display:block;flex-shrink:0}
+
+/* CANVAS */
+.canvas-outer{position:relative;overflow:hidden;border:1px solid var(--bd);border-left:none;border-top:none}
+
+/* PHOTO ROWS */
+.photo-row{position:absolute;left:0;display:flex;align-items:flex-start}
+
+.pr-img{display:block;object-fit:cover;flex-shrink:0;cursor:default}
+
+/* Row badge */
+.row-badge{position:absolute;top:0;left:0;font-family:'DM Mono',monospace;font-size:8px;font-weight:500;padding:2px 7px;pointer-events:none;letter-spacing:.05em;z-index:2;border-radius:0 0 3px 0}
+
+/* empty */
+.empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:10px}
+.empty-ico{font-size:32px;opacity:.18}
+.empty p{font-size:11px;color:var(--mu);letter-spacing:.05em}
+
+/* COMPARISON BAR */
+.comp{background:var(--s1);border-top:1px solid var(--bd);padding:10px 18px;flex-shrink:0;max-height:150px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bd2) transparent;display:none}
+.comp-title{font-size:9px;letter-spacing:.15em;color:var(--mu);text-transform:uppercase;margin-bottom:9px}
+.comp-rows{display:flex;flex-direction:column;gap:5px}
+.c-row{display:flex;align-items:center;gap:8px}
+.c-lbl{font-size:9px;color:var(--mu);width:66px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-track{flex:1;height:14px;background:var(--bg);border:1px solid var(--bd);border-radius:2px;overflow:hidden}
+.c-fill{height:100%;display:flex;align-items:center;padding-left:4px;font-size:8px;font-family:'DM Mono',monospace;color:rgba(0,0,0,.65);font-weight:500;white-space:nowrap;transition:width .4s cubic-bezier(.4,0,.2,1);min-width:3px}
+.c-val{font-size:9px;color:var(--tx);width:64px;text-align:right;flex-shrink:0}
+
+@keyframes rowIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.photo-row{animation:rowIn .25s ease both}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">▦ RATIO GRID</div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-stat">CANVAS <b id="hSize">1200 × 900 px</b></div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-stat">PHOTOS <b id="hCount">0</b></div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-stat">ROWS <b id="hRows">0</b></div>
+  <div class="topbar-right">
+    <button class="btn btn-ghost btn-sm" id="btnRearrange">↻ Rearrange</button>
+    <button class="btn btn-acc btn-sm" id="btnExport">↓ Export PNG</button>
+    <button class="btn btn-red btn-sm" id="btnClear">Clear</button>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-inner">
+
+      <!-- Canvas -->
+      <div class="sec">
+        <div class="sec-title">Canvas Size</div>
+        <div class="field">
+          <label>Width</label>
+          <input type="number" id="cW" value="1200" min="200" max="8000" step="10">
+          <select id="cUnit" style="width:46px;flex:none">
+            <option value="px">px</option>
+            <option value="mm">mm</option>
+            <option value="in">in</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Height</label>
+          <input type="number" id="cH" value="900" min="200" max="8000" step="10">
+          <span class="unit" id="cUnitLabel">px</span>
+        </div>
+        <div class="field">
+          <label>DPI</label>
+          <input type="number" id="cDPI" value="96" min="72" max="600">
+        </div>
+        <div class="presets">
+          <button class="pre" data-w="1920" data-h="1080">16:9<br>FHD</button>
+          <button class="pre" data-w="1200" data-h="900">4:3<br>Web</button>
+          <button class="pre" data-w="1080" data-h="1080">1:1<br>Sq</button>
+          <button class="pre" data-w="3508" data-h="2480">A4<br>Land</button>
+          <button class="pre" data-w="2480" data-h="3508">A4<br>Port</button>
+          <button class="pre" data-w="2560" data-h="1440">2K<br>16:9</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" id="btnApply">Apply Canvas</button>
+      </div>
+
+      <!-- Default row settings -->
+      <div class="sec">
+        <div class="sec-title">Default Row Settings</div>
+        <div class="field">
+          <label>Row H</label>
+          <input type="number" id="defH" value="300" min="40" max="2000" step="10">
+          <span class="unit">px</span>
+        </div>
+        <div class="field">
+          <label>Gap</label>
+          <input type="number" id="defGap" value="8" min="0" max="80" step="1">
+          <span class="unit">px</span>
+        </div>
+        <div class="field">
+          <label>Fit mode</label>
+          <select id="defFit">
+            <option value="fill-width">Fill canvas width</option>
+            <option value="fixed-h">Fixed height</option>
+            <option value="fixed-w">Fixed width/photo</option>
+            <option value="fit-count">Fit N images/row</option>
+          </select>
+        </div>
+        <div class="field" id="defCountRow" style="display:none">
+          <label>N/row</label>
+          <input type="number" id="defCount" value="3" min="1" max="20" step="1">
+          <span class="unit" style="font-size:9px;color:var(--mu)">imgs</span>
+        </div>
+        <div class="field">
+          <label>Max/row</label>
+          <input type="number" id="defMax" value="0" min="0" max="20" step="1" title="0 = no limit">
+          <span class="unit" style="font-size:9px;color:var(--mu);width:36px">0=∞</span>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="sec">
+        <div class="sec-title">Photos</div>
+        <div class="drop" id="drop">
+          <input type="file" id="fileIn" multiple accept="image/*">
+          <div class="drop-ico">🖼</div>
+          <p>Drop photos here<br>or click to browse</p>
+        </div>
+        <div class="plist" id="plist"></div>
+      </div>
+
+      <!-- Row groups -->
+      <div class="sec">
+        <div class="sec-title">Ratio Rows — drag to reorder</div>
+        <div class="rg-list" id="rgList">
+          <div style="font-size:10px;color:var(--mu);text-align:center;padding:12px 0">Upload photos to see ratio groups</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div class="workspace">
+    <div class="toolbar">
+      ZOOM:
+      <div class="zg">
+        <button class="zb" id="zOut">−</button>
+        <span id="zLbl" style="width:34px;text-align:center;font-size:10px">67%</span>
+        <button class="zb" id="zIn">+</button>
+        <button class="zb txt" id="zFit">FIT</button>
+      </div>
+      &nbsp;|&nbsp; CANVAS: <b id="tSize">1200 × 900</b>
+      &nbsp;|&nbsp; TOTAL H: <b id="tTH">—</b>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <div>
+        <div class="rr-wrap" id="rrWrap">
+          <div class="rr-row">
+            <div class="rr-corner"></div>
+            <canvas id="rrH" class="rr-h"></canvas>
+          </div>
+          <div class="rr-row">
+            <canvas id="rrV" class="rr-v"></canvas>
+            <div class="canvas-outer" id="canvasOuter">
+              <div class="empty" id="emptyHint">
+                <div class="empty-ico">🏞</div>
+                <p>UPLOAD PHOTOS TO BEGIN</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Comparison -->
+        <div class="comp" id="comp">
+          <div class="comp-title">Size Ruler Comparison</div>
+          <div class="comp-rows" id="compRows"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STATE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let canvasW = 1200, canvasH = 900, zoom = 0.67;
+let photos = []; // {id,name,src,natW,natH,ratio,rk}
+let rowOrder = []; // ratioKey order
+
+// Per-row overrides: rk → {rowH, gap, fit, maxPerRow}
+// fit: 'fill-width' | 'fixed-h' | 'fixed-w'
+let rowSettings = {};
+
+const RATIO_TABLE = {
+  '1:1':1,'4:3':4/3,'3:4':3/4,'16:9':16/9,'9:16':9/16,
+  '3:2':3/2,'2:3':2/3,'5:4':5/4,'4:5':4/5,
+  '21:9':21/9,'2:1':2,'1:2':.5,'5:7':5/7,'7:5':7/5
+};
+const TOL = 0.07;
+
+const PALETTE = ['#d4f060','#60c8f0','#f060a0','#c060f0','#60f0b0','#f0a060','#60e0f0','#f0d060'];
+const rkColor = {};
+let ci = 0;
+
+function color(rk){
+  if(!rkColor[rk]){rkColor[rk]=PALETTE[ci%PALETTE.length];ci++;}
+  return rkColor[rk];
+}
+
+function snapRatio(w,h){
+  const r=w/h;
+  let best=null,bd=Infinity;
+  for(const[n,v] of Object.entries(RATIO_TABLE)){
+    const d=Math.abs(r-v)/v;
+    if(d<bd){bd=d;best=n;}
+  }
+  if(bd<TOL)return best;
+  function gcd(a,b){return b===0?a:gcd(b,a%b);}
+  const g=gcd(Math.round(w),Math.round(h));
+  return `${Math.round(w/g)}:${Math.round(h/g)}`;
+}
+
+function defSettings(){
+  return {
+    rowH:  parseInt(document.getElementById('defH').value)||300,
+    gap:   parseInt(document.getElementById('defGap').value)||8,
+    fit:   document.getElementById('defFit').value,
+    max:   parseInt(document.getElementById('defMax').value)||0,
+    count: parseInt(document.getElementById('defCount').value)||3
+  };
+}
+
+// Show/hide count field in default settings panel
+document.getElementById('defFit').addEventListener('change',e=>{
+  document.getElementById('defCountRow').style.display=e.target.value==='fit-count'?'flex':'none';
+});
+
+function getRowSettings(rk){
+  return rowSettings[rk] || {...defSettings()};
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CANVAS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const canvasOuter = document.getElementById('canvasOuter');
+const emptyHint   = document.getElementById('emptyHint');
+const comp        = document.getElementById('comp');
+const compRows    = document.getElementById('compRows');
+
+function applyCanvas(){
+  canvasOuter.style.width  = Math.round(canvasW*zoom)+'px';
+  canvasOuter.style.height = Math.round(canvasH*zoom)+'px';
+  drawRulers();
+  document.getElementById('hSize').textContent  = `${canvasW} × ${canvasH} px`;
+  document.getElementById('tSize').textContent  = `${canvasW} × ${canvasH}`;
+  document.getElementById('zLbl').textContent   = Math.round(zoom*100)+'%';
+  comp.style.width = (Math.round(canvasW*zoom)+20)+'px';
+  arrange();
+}
+
+document.getElementById('btnApply').onclick = ()=>{
+  const unit=document.getElementById('cUnit').value;
+  const dpi=parseInt(document.getElementById('cDPI').value)||96;
+  let w=parseFloat(document.getElementById('cW').value);
+  let h=parseFloat(document.getElementById('cH').value);
+  if(unit==='mm'){w=w*dpi/25.4;h=h*dpi/25.4;}
+  else if(unit==='in'){w=w*dpi;h=h*dpi;}
+  canvasW=Math.max(200,Math.min(8000,Math.round(w)));
+  canvasH=Math.max(200,Math.min(8000,Math.round(h)));
+  document.querySelectorAll('.pre').forEach(b=>b.classList.remove('on'));
+  applyCanvas();
+};
+
+document.querySelectorAll('.pre').forEach(b=>{
+  b.addEventListener('click',()=>{
+    canvasW=parseInt(b.dataset.w); canvasH=parseInt(b.dataset.h);
+    document.getElementById('cW').value=canvasW;
+    document.getElementById('cH').value=canvasH;
+    document.getElementById('cUnit').value='px';
+    document.querySelectorAll('.pre').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    applyCanvas();
+  });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RULERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function drawRulers(){
+  const dw=Math.round(canvasW*zoom), dh=Math.round(canvasH*zoom), S=20;
+  const rH=document.getElementById('rrH'), rV=document.getElementById('rrV');
+  rH.width=dw; rH.height=S; rH.style.width=dw+'px';
+  const hc=rH.getContext('2d'); hc.fillStyle='#0f1012'; hc.fillRect(0,0,dw,S); ticks(hc,dw,S,'h');
+  rV.width=S; rV.height=dh; rV.style.height=dh+'px';
+  const vc=rV.getContext('2d'); vc.fillStyle='#0f1012'; vc.fillRect(0,0,S,dh); ticks(vc,dh,S,'v');
+}
+
+function ticks(ctx,len,S,dir){
+  const steps=[1,2,5,10,25,50,100,250,500,1000,2000];
+  let step=10; for(const s of steps){if(s*zoom>=50){step=s;break;}}
+  ctx.font=`8px DM Mono, monospace`; ctx.textBaseline='top';
+  for(let px=0;px<=len/zoom;px+=step/10){
+    const pos=Math.round(px*zoom); if(pos>len)break;
+    const isM=(px%step)<.001, isMid=(px%(step/2))<.001&&!isM;
+    const th=isM?S*.55:isMid?S*.35:S*.15;
+    ctx.strokeStyle=isM?'#404358':isMid?'#2c2e3c':'#1e202a';
+    ctx.lineWidth=isM?1:.5;
+    ctx.beginPath();
+    if(dir==='h'){
+      ctx.moveTo(pos+.5,S-th); ctx.lineTo(pos+.5,S);
+      if(isM&&px>0){ctx.fillStyle='#5a5e6e';ctx.fillText(Math.round(px),pos+2,2);}
+    } else {
+      ctx.moveTo(S-th,pos+.5); ctx.lineTo(S,pos+.5);
+      if(isM&&px>0){ctx.save();ctx.fillStyle='#5a5e6e';ctx.translate(S-th-1,pos+2);ctx.rotate(-Math.PI/2);ctx.fillText(Math.round(px),0,0);ctx.restore();}
+    }
+    ctx.stroke();
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ZOOM
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+document.getElementById('zIn').onclick=()=>{zoom=Math.min(3,+(zoom+.1).toFixed(2));applyCanvas();};
+document.getElementById('zOut').onclick=()=>{zoom=Math.max(.08,+(zoom-.1).toFixed(2));applyCanvas();};
+document.getElementById('zFit').onclick=()=>{
+  const sc=document.getElementById('canvasWrap');
+  zoom=Math.min((sc.clientWidth-80)/canvasW,(sc.clientHeight-80)/canvasH,1);
+  zoom=Math.max(.05,+zoom.toFixed(2));
+  applyCanvas();
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FILE UPLOAD
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const drop=document.getElementById('drop');
+const fileIn=document.getElementById('fileIn');
+
+drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('ov');});
+drop.addEventListener('dragleave',()=>drop.classList.remove('ov'));
+drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('ov');handleFiles(e.dataTransfer.files);});
+fileIn.addEventListener('change',e=>{handleFiles(e.target.files);});
+
+function handleFiles(files){
+  Array.from(files).filter(f=>f.type.startsWith('image/')).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const rk=snapRatio(img.width,img.height);
+        const ph={id:Date.now()+Math.random(),name:file.name,src:e.target.result,natW:img.width,natH:img.height,ratio:img.width/img.height,rk};
+        photos.push(ph);
+        addPhotoCard(ph);
+        rebuildOrder();
+        arrange();
+        renderRGList();
+        emptyHint.style.display='none';
+        document.getElementById('hCount').textContent=photos.length;
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+  fileIn.value='';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PHOTO LIST
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function addPhotoCard(ph){
+  const c=color(ph.rk);
+  const d=document.createElement('div');
+  d.className='pcard'; d.dataset.id=ph.id;
+  d.innerHTML=`<img class="pthumb" src="${ph.src}"><div class="pinfo"><div class="pname">${ph.name}</div><div class="pmeta"><span>${ph.natW}×${ph.natH}</span><span class="rbadge" style="color:${c};border-color:${c}40;background:${c}12">${ph.rk}</span></div></div><button class="prm" data-id="${ph.id}">×</button>`;
+  d.querySelector('.prm').onclick=()=>removePhoto(ph.id);
+  document.getElementById('plist').appendChild(d);
+}
+
+function removePhoto(id){
+  photos=photos.filter(p=>p.id!==id);
+  document.querySelector(`.pcard[data-id="${id}"]`)?.remove();
+  rebuildOrder();
+  arrange();
+  renderRGList();
+  document.getElementById('hCount').textContent=photos.length;
+  if(!photos.length) emptyHint.style.display='flex';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ROW ORDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function rebuildOrder(){
+  const seen=new Set(); const fresh=[];
+  photos.forEach(p=>{if(!seen.has(p.rk)){seen.add(p.rk);fresh.push(p.rk);}});
+  rowOrder=rowOrder.filter(k=>seen.has(k));
+  fresh.forEach(k=>{if(!rowOrder.includes(k))rowOrder.push(k);});
+  // clean up rowSettings for removed keys
+  Object.keys(rowSettings).forEach(k=>{if(!seen.has(k))delete rowSettings[k];});
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ARRANGE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function arrange(){
+  canvasOuter.querySelectorAll('.photo-row').forEach(e=>e.remove());
+  if(!photos.length){updateComp([]);return;}
+
+  const groups={};
+  rowOrder.forEach(k=>{groups[k]=[];});
+  photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
+
+  let yPx=0;
+  const meta=[];
+
+  rowOrder.forEach(rk=>{
+    const grp=groups[rk]; if(!grp||!grp.length)return;
+    const rs=getRowSettings(rk);
+    const g=rs.gap, fit=rs.fit, maxN=rs.max||grp.length;
+    const clr=color(rk);
+
+    // For fit-count: use count as chunk size; otherwise use maxN
+    const chunkSize=fit==='fit-count'?(rs.count||3):maxN;
+    const chunks=[];
+    for(let i=0;i<grp.length;i+=chunkSize) chunks.push(grp.slice(i,i+chunkSize));
+
+    chunks.forEach(chunk=>{
+      const n=chunk.length;
+      let rowH=rs.rowH;
+
+      // Compute each photo width based on fit mode
+      let widths;
+      if(fit==='fill-width'){
+        // All same height, widths proportional, total fills canvasW
+        const totalGap=g*(n+1);
+        const sumR=chunk.reduce((s,p)=>s+p.ratio,0);
+        rowH=Math.max(10,Math.round((canvasW-totalGap)/sumR));
+        widths=chunk.map(p=>Math.round(p.ratio*rowH));
+      } else if(fit==='fit-count'){
+        // Exactly N per row: equal widths filling canvas, height per photo's own ratio
+        const N=rs.count||3;
+        const totalGap=g*(N+1);
+        const photoW=Math.max(1,Math.round((canvasW-totalGap)/N));
+        widths=chunk.map(()=>photoW);
+        rowH=Math.round(photoW/chunk[0].ratio);
+      } else if(fit==='fixed-h'){
+        // Fixed height, widths by ratio, may not fill full width
+        widths=chunk.map(p=>Math.round(p.ratio*rowH));
+      } else if(fit==='fixed-w'){
+        // Fixed width per photo = rowH treated as per-photo width
+        const photoW=rs.rowH; // repurpose rowH input as photo width
+        widths=chunk.map(()=>photoW);
+        rowH=Math.round(photoW/chunk[0].ratio); // h from first photo's ratio
+      }
+
+      const rowEl=document.createElement('div');
+      rowEl.className='photo-row';
+      rowEl.style.top=Math.round(yPx*zoom)+'px';
+      rowEl.style.left=Math.round(g*zoom)+'px';
+      rowEl.style.gap=Math.round(g*zoom)+'px';
+
+      const badge=document.createElement('div');
+      badge.className='row-badge';
+      badge.style.background=clr;
+      badge.style.color='rgba(0,0,0,.7)';
+      const fitLabel=fit==='fill-width'?'fill-w':fit==='fit-count'?`${rs.count||3}/row`:fit==='fixed-h'?'fixed-h':'fixed-w';
+      badge.textContent=`${rk} · ${fitLabel} · ${n}`;
+      rowEl.appendChild(badge);
+
+      chunk.forEach((ph,i)=>{
+        const img=document.createElement('img');
+        img.className='pr-img';
+        img.src=ph.src;
+        img.style.width=Math.round(widths[i]*zoom)+'px';
+        img.style.height=Math.round(rowH*zoom)+'px';
+        img.title=`${ph.name} — ${widths[i]}×${rowH}px`;
+        rowEl.appendChild(img);
+      });
+
+      canvasOuter.appendChild(rowEl);
+      meta.push({rk,rowH,fit,n,clr});
+      yPx+=rowH+g;
+    });
+  });
+
+  document.getElementById('tTH').textContent=Math.round(yPx)+'px';
+  document.getElementById('hRows').textContent=meta.length;
+  updateComp(meta);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COMPARISON
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function updateComp(meta){
+  if(!meta.length){comp.style.display='none';return;}
+  comp.style.display='block';
+  comp.style.width=(Math.round(canvasW*zoom)+20)+'px';
+
+  const items=[
+    {lbl:'Canvas W',val:canvasW,c:'#d4f060'},
+    {lbl:'Canvas H',val:canvasH,c:'#60c8f0'},
+    ...meta.map(m=>({lbl:`${m.rk} row H`,val:m.rowH,c:m.clr}))
+  ];
+
+  const maxV=Math.max(...items.map(i=>i.val),1);
+  compRows.innerHTML=items.map(it=>{
+    const pct=Math.max(2,(it.val/maxV)*100).toFixed(1);
+    return `<div class="c-row">
+      <div class="c-lbl" title="${it.lbl}">${it.lbl}</div>
+      <div class="c-track"><div class="c-fill" style="background:${it.c};width:${pct}%">${it.val>400?it.val+'px':''}</div></div>
+      <div class="c-val">${it.val} px</div>
+    </div>`;
+  }).join('');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ROW GROUPS LIST (sidebar)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderRGList(){
+  const el=document.getElementById('rgList');
+  el.innerHTML='';
+  if(!rowOrder.length){
+    el.innerHTML='<div style="font-size:10px;color:var(--mu);text-align:center;padding:12px 0">Upload photos to see ratio groups</div>';
+    return;
+  }
+  const groups={};
+  rowOrder.forEach(k=>{groups[k]=[];});
+  photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
+
+  rowOrder.forEach(rk=>{
+    const grp=groups[rk]; if(!grp||!grp.length)return;
+    const clr=color(rk);
+    const rs=getRowSettings(rk);
+
+    const card=document.createElement('div');
+    card.className='rg-card'; card.dataset.rk=rk; card.draggable=true;
+
+    card.innerHTML=`
+      <div class="rg-head">
+        <span class="rg-ratio" style="color:${clr}">${rk}</span>
+        <span class="rg-cnt">${grp.length} photo${grp.length>1?'s':''}</span>
+        <span class="rg-handle">⠿</span>
+      </div>
+      <div class="rg-thumbrow">
+        ${grp.slice(0,6).map(p=>`<img class="rg-t" src="${p.src}" style="width:${Math.round(p.ratio*24)}px">`).join('')}
+        ${grp.length>6?`<span style="font-size:9px;color:var(--mu);align-self:center;margin-left:2px">+${grp.length-6}</span>`:''}
+      </div>
+      <div class="rg-controls">
+        <div class="rc-row">
+          <span class="rc-label">Fit mode</span>
+          <select class="rc-select" data-key="fit" data-rk="${rk}">
+            <option value="fill-width" ${rs.fit==='fill-width'?'selected':''}>Fill canvas width</option>
+            <option value="fit-count"  ${rs.fit==='fit-count'?'selected':''}>Fit N images/row</option>
+            <option value="fixed-h"    ${rs.fit==='fixed-h'?'selected':''}>Fixed row height</option>
+            <option value="fixed-w"    ${rs.fit==='fixed-w'?'selected':''}>Fixed photo width</option>
+          </select>
+        </div>
+        <div class="rc-row" id="rccount-${rk}" style="${rs.fit==='fit-count'?'':'display:none'}">
+          <span class="rc-label">N / row</span>
+          <input type="number" class="rc-input" data-key="count" data-rk="${rk}" min="1" max="20" value="${rs.count||3}" style="width:56px;flex:none">
+          <span class="rc-unit" style="font-size:9px;margin-left:4px;color:var(--acc)">imgs</span>
+        </div>
+        <div class="rc-row" id="rcslider-${rk}" style="${rs.fit==='fit-count'?'display:none':''}">
+          <span class="rc-label" id="rhlbl-${rk}">${rs.fit==='fixed-w'?'Photo W':'Row H'}</span>
+          <input type="range" class="rc-slider" data-key="rowH" data-rk="${rk}" min="40" max="1200" step="10" value="${rs.rowH}">
+          <span class="rc-slval" id="rhval-${rk}">${rs.rowH}px</span>
+        </div>
+        <div class="rc-row">
+          <span class="rc-label">Gap</span>
+          <input type="range" class="rc-slider" data-key="gap" data-rk="${rk}" min="0" max="60" step="1" value="${rs.gap}">
+          <span class="rc-slval" id="gapval-${rk}">${rs.gap}px</span>
+        </div>
+        <div class="rc-row">
+          <span class="rc-label">Max/row</span>
+          <input type="number" class="rc-input" data-key="max" data-rk="${rk}" min="0" max="20" value="${rs.max||0}" style="width:60px;flex:none">
+          <span class="rc-unit" style="font-size:9px;margin-left:4px">0=∞</span>
+        </div>
+      </div>
+    `;
+
+    // Controls events
+    card.querySelectorAll('.rc-select,.rc-slider,.rc-input').forEach(inp=>{
+      inp.addEventListener('input',e=>{
+        const k=e.target.dataset.key, r=e.target.dataset.rk;
+        if(!rowSettings[r])rowSettings[r]={...defSettings()};
+        let val=e.target.value;
+        if(k==='rowH'||k==='gap'||k==='max') val=parseInt(val)||0;
+        rowSettings[r][k]=val;
+        // Update live label
+        if(k==='rowH'){
+          const lbl=document.getElementById(`rhval-${r}`);
+          if(lbl)lbl.textContent=val+'px';
+          const hlbl=document.getElementById(`rhlbl-${r}`);
+          if(hlbl)hlbl.textContent=rowSettings[r].fit==='fixed-w'?'Photo W':'Row H';
+        }
+        if(k==='gap'){
+          const gl=document.getElementById(`gapval-${r}`);
+          if(gl)gl.textContent=val+'px';
+        }
+        if(k==='fit'){
+          const hlbl=document.getElementById(`rhlbl-${r}`);
+          if(hlbl)hlbl.textContent=val==='fixed-w'?'Photo W':'Row H';
+          // Toggle count vs slider row visibility
+          const countRow=document.getElementById(`rccount-${r}`);
+          const sliderRow=document.getElementById(`rcslider-${r}`);
+          if(countRow) countRow.style.display=val==='fit-count'?'flex':'none';
+          if(sliderRow) sliderRow.style.display=val==='fit-count'?'none':'flex';
+        }
+        arrange();
+      });
+    });
+
+    bindDrag(card,rk);
+    el.appendChild(card);
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DRAG REORDER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let dragRK=null;
+
+function bindDrag(card,rk){
+  const head=card.querySelector('.rg-head');
+  head.addEventListener('mousedown',()=>card.setAttribute('draggable','true'));
+
+  card.addEventListener('dragstart',e=>{
+    dragRK=rk; card.classList.add('dragging');
+    e.dataTransfer.effectAllowed='move';
+  });
+  card.addEventListener('dragend',()=>{
+    dragRK=null; card.classList.remove('dragging');
+    document.querySelectorAll('.rg-card').forEach(c=>c.classList.remove('drag-over'));
+  });
+  card.addEventListener('dragover',e=>{
+    e.preventDefault();
+    if(dragRK&&dragRK!==rk)card.classList.add('drag-over');
+  });
+  card.addEventListener('dragleave',()=>card.classList.remove('drag-over'));
+  card.addEventListener('drop',e=>{
+    e.preventDefault(); card.classList.remove('drag-over');
+    if(!dragRK||dragRK===rk)return;
+    const fi=rowOrder.indexOf(dragRK), ti=rowOrder.indexOf(rk);
+    if(fi<0||ti<0)return;
+    rowOrder.splice(fi,1); rowOrder.splice(ti,0,dragRK);
+    renderRGList(); arrange();
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// REARRANGE / CLEAR / EXPORT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+document.getElementById('btnRearrange').onclick=arrange;
+
+document.getElementById('btnClear').onclick=()=>{
+  photos=[]; rowOrder=[]; rowSettings={};
+  Object.keys(rkColor).forEach(k=>delete rkColor[k]); ci=0;
+  document.getElementById('plist').innerHTML='';
+  document.getElementById('hCount').textContent='0';
+  document.getElementById('hRows').textContent='0';
+  document.getElementById('tTH').textContent='—';
+  canvasOuter.querySelectorAll('.photo-row').forEach(e=>e.remove());
+  emptyHint.style.display='flex';
+  comp.style.display='none';
+  renderRGList();
+};
+
+document.getElementById('btnExport').onclick=()=>{
+  const ec=document.createElement('canvas');
+  ec.width=canvasW; ec.height=canvasH;
+  const ctx=ec.getContext('2d');
+  ctx.fillStyle='#1a1b1f'; ctx.fillRect(0,0,canvasW,canvasH);
+
+  const groups={};
+  rowOrder.forEach(k=>{groups[k]=[];});
+  photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
+
+  const draws=[];
+  let yPx=0;
+  rowOrder.forEach(rk=>{
+    const grp=groups[rk]; if(!grp||!grp.length)return;
+    const rs=getRowSettings(rk);
+    const g=rs.gap, fit=rs.fit, maxN=rs.max||grp.length;
+    const chunkSizeEx=fit==='fit-count'?(rs.count||3):maxN;
+    const chunks=[];
+    for(let i=0;i<grp.length;i+=chunkSizeEx)chunks.push(grp.slice(i,i+chunkSizeEx));
+    chunks.forEach(chunk=>{
+      const n=chunk.length;
+      let rowH=rs.rowH, widths;
+      if(fit==='fill-width'){
+        const sumR=chunk.reduce((s,p)=>s+p.ratio,0);
+        rowH=Math.max(1,Math.round((canvasW-g*(n+1))/sumR));
+        widths=chunk.map(p=>Math.round(p.ratio*rowH));
+      } else if(fit==='fit-count'){
+        const N=rs.count||3;
+        const photoW=Math.max(1,Math.round((canvasW-g*(N+1))/N));
+        widths=chunk.map(()=>photoW);
+        rowH=Math.round(photoW/chunk[0].ratio);
+      } else if(fit==='fixed-h'){
+        widths=chunk.map(p=>Math.round(p.ratio*rowH));
+      } else {
+        const pw=rs.rowH; widths=chunk.map(()=>pw);
+        rowH=Math.round(pw/chunk[0].ratio);
+      }
+      let xPx=g;
+      chunk.forEach((ph,i)=>{
+        draws.push({src:ph.src,x:xPx,y:yPx,w:widths[i],h:rowH});
+        xPx+=widths[i]+g;
+      });
+      yPx+=rowH+g;
+    });
+  });
+
+  let pending=draws.length;
+  if(!pending){dl(ec);return;}
+  draws.forEach(d=>{
+    const img=new Image();
+    img.onload=()=>{ctx.drawImage(img,d.x,d.y,d.w,d.h);if(--pending===0)dl(ec);};
+    img.src=d.src;
+  });
+};
+
+function dl(c){
+  const a=document.createElement('a');
+  a.href=c.toDataURL('image/png');
+  a.download=`ratio-grid-${canvasW}x${canvasH}.png`;
+  a.click();
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+applyCanvas();
+setTimeout(()=>document.getElementById('zFit').click(), 120);
+</script>
+</body>
+</html>

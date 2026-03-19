@@ -157,6 +157,30 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
 
 @keyframes rowIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .photo-row{animation:rowIn .25s ease both}
+/* PAGE DIVIDER */
+.page-divider{position:relative;display:flex;align-items:center;gap:10px;margin:14px 0 6px}
+.page-divider-line{flex:1;height:1px;background:var(--bd2)}
+.page-divider-label{font-family:'Unbounded',sans-serif;font-size:9px;font-weight:600;color:var(--acc);letter-spacing:.1em;white-space:nowrap;background:var(--bg);padding:0 6px}
+
+/* PAGES WRAP */
+.pages-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:32px}
+
+/* MERGE UI */
+.merge-zone{background:var(--s2);border:1px dashed var(--bd2);border-radius:5px;padding:10px 12px;margin-top:6px}
+.merge-zone p{font-size:9px;color:var(--mu);margin-bottom:8px}
+.merge-checkboxes{display:flex;flex-direction:column;gap:5px}
+.merge-cb-row{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--tx);cursor:pointer}
+.merge-cb-row input[type=checkbox]{accent-color:var(--acc);width:13px;height:13px;cursor:pointer}
+.merge-actions{display:flex;gap:6px;margin-top:8px}
+.mbtn{font-family:'DM Mono',monospace;font-size:9px;padding:4px 10px;border-radius:3px;cursor:pointer;border:1px solid;transition:all .15s;letter-spacing:.05em}
+.mbtn-acc{background:var(--acc);border-color:var(--acc);color:#0a0b0d;font-weight:600}
+.mbtn-acc:hover{background:#e8ff80}
+.mbtn-ghost{background:transparent;border-color:var(--bd2);color:var(--mu2)}
+.mbtn-ghost:hover{border-color:var(--tx);color:var(--tx)}
+
+/* merged badge */
+.merge-badge{font-size:8px;padding:1px 5px;border-radius:2px;background:rgba(212,240,96,.12);border:1px solid rgba(212,240,96,.3);color:var(--acc);margin-left:4px}
+
 </style>
 </head>
 <body>
@@ -169,9 +193,12 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
   <div class="topbar-stat">PHOTOS <b id="hCount">0</b></div>
   <div class="topbar-sep"></div>
   <div class="topbar-stat">ROWS <b id="hRows">0</b></div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-stat">PAGES <b id="hPages">1</b></div>
   <div class="topbar-right">
     <button class="btn btn-ghost btn-sm" id="btnRearrange">↻ Rearrange</button>
-    <button class="btn btn-acc btn-sm" id="btnExport">↓ Export PNG</button>
+    <button class="btn btn-acc btn-sm" id="btnExport">↓ Export Page</button>
+    <button class="btn btn-ghost btn-sm" id="btnExportAll">↓ Export All Pages</button>
     <button class="btn btn-red btn-sm" id="btnClear">Clear</button>
   </div>
 </div>
@@ -259,6 +286,19 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
         <div class="plist" id="plist"></div>
       </div>
 
+      <!-- Merge groups -->
+      <div class="sec">
+        <div class="sec-title">Merge Ratio Groups</div>
+        <div class="merge-zone">
+          <p>Check groups to merge into one combined row:</p>
+          <div class="merge-checkboxes" id="mergeCbs"></div>
+          <div class="merge-actions">
+            <button class="mbtn mbtn-acc" id="btnMerge">Merge Selected</button>
+            <button class="mbtn mbtn-ghost" id="btnUnmerge">Unmerge All</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Row groups -->
       <div class="sec">
         <div class="sec-title">Ratio Rows — drag to reorder</div>
@@ -285,22 +325,8 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
     </div>
 
     <div class="canvas-wrap" id="canvasWrap">
-      <div>
-        <div class="rr-wrap" id="rrWrap">
-          <div class="rr-row">
-            <div class="rr-corner"></div>
-            <canvas id="rrH" class="rr-h"></canvas>
-          </div>
-          <div class="rr-row">
-            <canvas id="rrV" class="rr-v"></canvas>
-            <div class="canvas-outer" id="canvasOuter">
-              <div class="empty" id="emptyHint">
-                <div class="empty-ico">🏞</div>
-                <p>UPLOAD PHOTOS TO BEGIN</p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="pages-wrap" id="pagesWrap">
+        <!-- pages injected here by JS -->
         <!-- Comparison -->
         <div class="comp" id="comp">
           <div class="comp-title">Size Ruler Comparison</div>
@@ -323,6 +349,7 @@ let rowOrder = []; // ratioKey order
 // Per-row overrides: rk → {rowH, gap, fit, maxPerRow}
 // fit: 'fill-width' | 'fixed-h' | 'fixed-w'
 let rowSettings = {};
+let mergeGroups = []; // array of arrays of rk keys merged together
 
 const RATIO_TABLE = {
   '1:1':1,'4:3':4/3,'3:4':3/4,'16:9':16/9,'9:16':9/16,
@@ -375,20 +402,56 @@ function getRowSettings(rk){
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CANVAS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const canvasOuter = document.getElementById('canvasOuter');
-const emptyHint   = document.getElementById('emptyHint');
 const comp        = document.getElementById('comp');
 const compRows    = document.getElementById('compRows');
+const pagesWrap   = document.getElementById('pagesWrap');
 
 function applyCanvas(){
-  canvasOuter.style.width  = Math.round(canvasW*zoom)+'px';
-  canvasOuter.style.height = Math.round(canvasH*zoom)+'px';
   drawRulers();
   document.getElementById('hSize').textContent  = `${canvasW} × ${canvasH} px`;
   document.getElementById('tSize').textContent  = `${canvasW} × ${canvasH}`;
   document.getElementById('zLbl').textContent   = Math.round(zoom*100)+'%';
-  comp.style.width = (Math.round(canvasW*zoom)+20)+'px';
   arrange();
+}
+
+function makePageEl(pageIdx){
+  const wrap = document.createElement('div');
+  wrap.style.cssText='display:flex;flex-direction:column;';
+
+  // Page label
+  const lbl = document.createElement('div');
+  lbl.className='page-divider';
+  lbl.innerHTML=`<div class="page-divider-line"></div><div class="page-divider-label">PAGE ${pageIdx+1}</div><div class="page-divider-line"></div>`;
+  wrap.appendChild(lbl);
+
+  // Ruler + canvas row
+  const rrWrap = document.createElement('div');
+  rrWrap.className='rr-wrap';
+
+  const topRow=document.createElement('div'); topRow.className='rr-row';
+  const corner=document.createElement('div'); corner.className='rr-corner';
+  const rH=document.createElement('canvas'); rH.className='rr-h';
+  topRow.appendChild(corner); topRow.appendChild(rH);
+
+  const midRow=document.createElement('div'); midRow.className='rr-row';
+  const rV=document.createElement('canvas'); rV.className='rr-v';
+  const co=document.createElement('div'); co.className='canvas-outer';
+  co.style.position='relative';
+  co.style.width=Math.round(canvasW*zoom)+'px';
+  co.style.height=Math.round(canvasH*zoom)+'px';
+  midRow.appendChild(rV); midRow.appendChild(co);
+
+  rrWrap.appendChild(topRow); rrWrap.appendChild(midRow);
+  wrap.appendChild(rrWrap);
+
+  // Draw rulers
+  const dw=Math.round(canvasW*zoom), dh=Math.round(canvasH*zoom), S=20;
+  rH.width=dw; rH.height=S; rH.style.width=dw+'px';
+  const hc=rH.getContext('2d'); hc.fillStyle='#0f1012'; hc.fillRect(0,0,dw,S); ticks(hc,dw,S,'h');
+  rV.width=S; rV.height=dh; rV.style.height=dh+'px';
+  const vc=rV.getContext('2d'); vc.fillStyle='#0f1012'; vc.fillRect(0,0,S,dh); ticks(vc,dh,S,'v');
+
+  return {wrap, co};
 }
 
 document.getElementById('btnApply').onclick = ()=>{
@@ -419,14 +482,7 @@ document.querySelectorAll('.pre').forEach(b=>{
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // RULERS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function drawRulers(){
-  const dw=Math.round(canvasW*zoom), dh=Math.round(canvasH*zoom), S=20;
-  const rH=document.getElementById('rrH'), rV=document.getElementById('rrV');
-  rH.width=dw; rH.height=S; rH.style.width=dw+'px';
-  const hc=rH.getContext('2d'); hc.fillStyle='#0f1012'; hc.fillRect(0,0,dw,S); ticks(hc,dw,S,'h');
-  rV.width=S; rV.height=dh; rV.style.height=dh+'px';
-  const vc=rV.getContext('2d'); vc.fillStyle='#0f1012'; vc.fillRect(0,0,S,dh); ticks(vc,dh,S,'v');
-}
+function drawRulers(){} // rulers now created per-page in makePageEl
 
 function ticks(ctx,len,S,dir){
   const steps=[1,2,5,10,25,50,100,250,500,1000,2000];
@@ -515,7 +571,7 @@ function removePhoto(id){
   arrange();
   renderRGList();
   document.getElementById('hCount').textContent=photos.length;
-  if(!photos.length) emptyHint.style.display='flex';
+  if(!photos.length){ Array.from(pagesWrap.children).forEach(c=>{if(c!==comp)c.remove()}); }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -528,94 +584,146 @@ function rebuildOrder(){
   fresh.forEach(k=>{if(!rowOrder.includes(k))rowOrder.push(k);});
   // clean up rowSettings for removed keys
   Object.keys(rowSettings).forEach(k=>{if(!seen.has(k))delete rowSettings[k];});
+  // clean up mergeGroups
+  mergeGroups=mergeGroups.map(g=>g.filter(k=>seen.has(k))).filter(g=>g.length>1);
+  renderMergeCbs();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // ARRANGE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function arrange(){
-  canvasOuter.querySelectorAll('.photo-row').forEach(e=>e.remove());
-  if(!photos.length){updateComp([]);return;}
-
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COMPUTE ROWS (shared by arrange + export)
+// returns flat array of {photos[], rk, rs, clr, label}
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function computeRows(){
   const groups={};
   rowOrder.forEach(k=>{groups[k]=[];});
   photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
 
-  let yPx=0;
-  const meta=[];
-
+  // Build effective order: merged groups appear once under their first rk
+  const visited=new Set();
+  const effectiveOrder=[];
   rowOrder.forEach(rk=>{
-    const grp=groups[rk]; if(!grp||!grp.length)return;
-    const rs=getRowSettings(rk);
-    const g=rs.gap, fit=rs.fit, maxN=rs.max||grp.length;
-    const clr=color(rk);
+    if(visited.has(rk))return;
+    // find if rk is in a merge group
+    const mg=mergeGroups.find(g=>g.includes(rk));
+    if(mg){
+      mg.forEach(k=>visited.add(k));
+      effectiveOrder.push({type:'merged', keys:mg});
+    } else {
+      visited.add(rk);
+      effectiveOrder.push({type:'single', keys:[rk]});
+    }
+  });
 
-    // For fit-count: use count as chunk size; otherwise use maxN
+  const allRows=[];
+  effectiveOrder.forEach(entry=>{
+    const {keys}=entry;
+    // Combine photos from all keys in this entry
+    const combined=[];
+    keys.forEach(k=>{if(groups[k])combined.push(...groups[k]);});
+    if(!combined.length)return;
+
+    const rk=keys[0]; // representative key
+    const rs=getRowSettings(rk);
+    const g=rs.gap, fit=rs.fit, maxN=rs.max||combined.length;
+    const clr=entry.type==='merged'?'#f0a060':color(rk);
+    const rkLabel=keys.length>1?keys.join('+'):rk;
+
     const chunkSize=fit==='fit-count'?(rs.count||3):maxN;
     const chunks=[];
-    for(let i=0;i<grp.length;i+=chunkSize) chunks.push(grp.slice(i,i+chunkSize));
+    for(let i=0;i<combined.length;i+=chunkSize) chunks.push(combined.slice(i,i+chunkSize));
 
     chunks.forEach(chunk=>{
       const n=chunk.length;
-      let rowH=rs.rowH;
-
-      // Compute each photo width based on fit mode
-      let widths;
+      let rowH=rs.rowH, widths;
       if(fit==='fill-width'){
-        // All same height, widths proportional, total fills canvasW
-        const totalGap=g*(n+1);
         const sumR=chunk.reduce((s,p)=>s+p.ratio,0);
-        rowH=Math.max(10,Math.round((canvasW-totalGap)/sumR));
+        rowH=Math.max(10,Math.round((canvasW-g*(n+1))/sumR));
         widths=chunk.map(p=>Math.round(p.ratio*rowH));
       } else if(fit==='fit-count'){
-        // Exactly N per row: equal widths filling canvas, height per photo's own ratio
         const N=rs.count||3;
-        const totalGap=g*(N+1);
-        const photoW=Math.max(1,Math.round((canvasW-totalGap)/N));
+        const photoW=Math.max(1,Math.round((canvasW-g*(N+1))/N));
         widths=chunk.map(()=>photoW);
         rowH=Math.round(photoW/chunk[0].ratio);
       } else if(fit==='fixed-h'){
-        // Fixed height, widths by ratio, may not fill full width
         widths=chunk.map(p=>Math.round(p.ratio*rowH));
-      } else if(fit==='fixed-w'){
-        // Fixed width per photo = rowH treated as per-photo width
-        const photoW=rs.rowH; // repurpose rowH input as photo width
+      } else {
+        const photoW=rs.rowH;
         widths=chunk.map(()=>photoW);
-        rowH=Math.round(photoW/chunk[0].ratio); // h from first photo's ratio
+        rowH=Math.round(photoW/chunk[0].ratio);
       }
+      const fitLabel=fit==='fill-width'?'fill-w':fit==='fit-count'?`${rs.count||3}/row`:fit==='fixed-h'?'fixed-h':'fixed-w';
+      allRows.push({photos:chunk, widths, rowH, g, rk, rkLabel, rs, clr, fitLabel, n});
+    });
+  });
+  return allRows;
+}
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ARRANGE — multi-page
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function arrange(){
+  // Remove old pages (keep comp)
+  Array.from(pagesWrap.children).forEach(c=>{if(c!==comp)c.remove();});
+
+  if(!photos.length){updateComp([]);document.getElementById('hPages').textContent=1;return;}
+
+  const allRows=computeRows();
+  if(!allRows.length){updateComp([]);return;}
+
+  // Distribute rows into pages based on canvas height
+  const pages=[]; // pages[i] = array of row objects
+  let curPage=[], curY=0;
+
+  allRows.forEach(row=>{
+    const rowTotal=row.rowH+row.g;
+    if(curY>0 && curY+rowTotal>canvasH){
+      pages.push(curPage);
+      curPage=[]; curY=0;
+    }
+    curPage.push({row, yPx:curY});
+    curY+=rowTotal;
+  });
+  if(curPage.length)pages.push(curPage);
+
+  document.getElementById('hPages').textContent=pages.length;
+  document.getElementById('hRows').textContent=allRows.length;
+
+  const meta=[];
+  pages.forEach((pageRows, pi)=>{
+    const {wrap, co}=makePageEl(pi);
+    pageRows.forEach(({row, yPx})=>{
       const rowEl=document.createElement('div');
       rowEl.className='photo-row';
       rowEl.style.top=Math.round(yPx*zoom)+'px';
-      rowEl.style.left=Math.round(g*zoom)+'px';
-      rowEl.style.gap=Math.round(g*zoom)+'px';
+      rowEl.style.left=Math.round(row.g*zoom)+'px';
+      rowEl.style.gap=Math.round(row.g*zoom)+'px';
 
       const badge=document.createElement('div');
       badge.className='row-badge';
-      badge.style.background=clr;
+      badge.style.background=row.clr;
       badge.style.color='rgba(0,0,0,.7)';
-      const fitLabel=fit==='fill-width'?'fill-w':fit==='fit-count'?`${rs.count||3}/row`:fit==='fixed-h'?'fixed-h':'fixed-w';
-      badge.textContent=`${rk} · ${fitLabel} · ${n}`;
+      badge.textContent=`${row.rkLabel} · ${row.fitLabel} · ${row.n}`;
       rowEl.appendChild(badge);
 
-      chunk.forEach((ph,i)=>{
+      row.photos.forEach((ph,i)=>{
         const img=document.createElement('img');
         img.className='pr-img';
         img.src=ph.src;
-        img.style.width=Math.round(widths[i]*zoom)+'px';
-        img.style.height=Math.round(rowH*zoom)+'px';
-        img.title=`${ph.name} — ${widths[i]}×${rowH}px`;
+        img.style.width=Math.round(row.widths[i]*zoom)+'px';
+        img.style.height=Math.round(row.rowH*zoom)+'px';
+        img.title=`${ph.name} — ${row.widths[i]}×${row.rowH}px`;
         rowEl.appendChild(img);
       });
-
-      canvasOuter.appendChild(rowEl);
-      meta.push({rk,rowH,fit,n,clr});
-      yPx+=rowH+g;
+      co.appendChild(rowEl);
+      meta.push({rk:row.rkLabel, rowH:row.rowH, fit:row.fitLabel, n:row.n, clr:row.clr});
     });
+    pagesWrap.insertBefore(wrap, comp);
   });
 
-  document.getElementById('tTH').textContent=Math.round(yPx)+'px';
-  document.getElementById('hRows').textContent=meta.length;
+  document.getElementById('tTH').textContent=`${allRows.length} rows / ${pages.length} page${pages.length>1?'s':''}`;
   updateComp(meta);
 }
 
@@ -746,6 +854,50 @@ function renderRGList(){
   });
 }
 
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MERGE GROUPS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderMergeCbs(){
+  const cbs=document.getElementById('mergeCbs');
+  cbs.innerHTML='';
+  if(rowOrder.length<2){
+    cbs.innerHTML='<div style="font-size:9px;color:var(--mu)">Need 2+ ratio groups to merge</div>';
+    return;
+  }
+  const groups={};
+  rowOrder.forEach(k=>{groups[k]=[];});
+  photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
+
+  rowOrder.forEach(rk=>{
+    if(!groups[rk]||!groups[rk].length)return;
+    const clr=color(rk);
+    const isMerged=mergeGroups.some(g=>g.includes(rk));
+    const row=document.createElement('label');
+    row.className='merge-cb-row';
+    row.innerHTML=`<input type="checkbox" data-rk="${rk}" ${isMerged?'checked':''}><span style="color:${clr}">${rk}</span><span style="color:var(--mu);font-size:9px">(${groups[rk].length})</span>${isMerged?'<span class="merge-badge">merged</span>':''}`;
+    cbs.appendChild(row);
+  });
+}
+
+document.getElementById('btnMerge').onclick=()=>{
+  const checked=Array.from(document.querySelectorAll('#mergeCbs input[type=checkbox]:checked')).map(c=>c.dataset.rk);
+  if(checked.length<2){alert('Select at least 2 ratio groups to merge.');return;}
+  // Remove any existing merge groups that contain these keys
+  mergeGroups=mergeGroups.filter(g=>!g.some(k=>checked.includes(k)));
+  mergeGroups.push([...checked]);
+  renderMergeCbs();
+  renderRGList();
+  arrange();
+};
+
+document.getElementById('btnUnmerge').onclick=()=>{
+  mergeGroups=[];
+  renderMergeCbs();
+  renderRGList();
+  arrange();
+};
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DRAG REORDER
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -784,77 +936,90 @@ function bindDrag(card,rk){
 document.getElementById('btnRearrange').onclick=arrange;
 
 document.getElementById('btnClear').onclick=()=>{
-  photos=[]; rowOrder=[]; rowSettings={};
+  photos=[]; rowOrder=[]; rowSettings={}; mergeGroups=[];
   Object.keys(rkColor).forEach(k=>delete rkColor[k]); ci=0;
   document.getElementById('plist').innerHTML='';
   document.getElementById('hCount').textContent='0';
   document.getElementById('hRows').textContent='0';
   document.getElementById('tTH').textContent='—';
-  canvasOuter.querySelectorAll('.photo-row').forEach(e=>e.remove());
-  emptyHint.style.display='flex';
+  Array.from(pagesWrap.children).forEach(c=>{if(c!==comp)c.remove()});
   comp.style.display='none';
   renderRGList();
+  renderMergeCbs();
+  document.getElementById('hPages').textContent='1';
 };
 
-document.getElementById('btnExport').onclick=()=>{
+// Build draws per page from computeRows
+function buildPageDraws(){
+  const allRows=computeRows();
+  const pages=[]; let curPage=[], curY=0;
+  allRows.forEach(row=>{
+    const rowTotal=row.rowH+row.g;
+    if(curY>0&&curY+rowTotal>canvasH){pages.push(curPage);curPage=[];curY=0;}
+    curPage.push({row,yPx:curY}); curY+=rowTotal;
+  });
+  if(curPage.length)pages.push(curPage);
+  return pages;
+}
+
+function renderPageToCanvas(pageRows){
   const ec=document.createElement('canvas');
   ec.width=canvasW; ec.height=canvasH;
   const ctx=ec.getContext('2d');
   ctx.fillStyle='#1a1b1f'; ctx.fillRect(0,0,canvasW,canvasH);
-
-  const groups={};
-  rowOrder.forEach(k=>{groups[k]=[];});
-  photos.forEach(p=>{if(groups[p.rk])groups[p.rk].push(p);});
-
   const draws=[];
-  let yPx=0;
-  rowOrder.forEach(rk=>{
-    const grp=groups[rk]; if(!grp||!grp.length)return;
-    const rs=getRowSettings(rk);
-    const g=rs.gap, fit=rs.fit, maxN=rs.max||grp.length;
-    const chunkSizeEx=fit==='fit-count'?(rs.count||3):maxN;
-    const chunks=[];
-    for(let i=0;i<grp.length;i+=chunkSizeEx)chunks.push(grp.slice(i,i+chunkSizeEx));
-    chunks.forEach(chunk=>{
-      const n=chunk.length;
-      let rowH=rs.rowH, widths;
-      if(fit==='fill-width'){
-        const sumR=chunk.reduce((s,p)=>s+p.ratio,0);
-        rowH=Math.max(1,Math.round((canvasW-g*(n+1))/sumR));
-        widths=chunk.map(p=>Math.round(p.ratio*rowH));
-      } else if(fit==='fit-count'){
-        const N=rs.count||3;
-        const photoW=Math.max(1,Math.round((canvasW-g*(N+1))/N));
-        widths=chunk.map(()=>photoW);
-        rowH=Math.round(photoW/chunk[0].ratio);
-      } else if(fit==='fixed-h'){
-        widths=chunk.map(p=>Math.round(p.ratio*rowH));
-      } else {
-        const pw=rs.rowH; widths=chunk.map(()=>pw);
-        rowH=Math.round(pw/chunk[0].ratio);
-      }
-      let xPx=g;
-      chunk.forEach((ph,i)=>{
-        draws.push({src:ph.src,x:xPx,y:yPx,w:widths[i],h:rowH});
-        xPx+=widths[i]+g;
-      });
-      yPx+=rowH+g;
+  pageRows.forEach(({row,yPx})=>{
+    let xPx=row.g;
+    row.photos.forEach((ph,i)=>{
+      draws.push({src:ph.src,x:xPx,y:yPx,w:row.widths[i],h:row.rowH});
+      xPx+=row.widths[i]+row.g;
     });
   });
-
-  let pending=draws.length;
-  if(!pending){dl(ec);return;}
-  draws.forEach(d=>{
-    const img=new Image();
-    img.onload=()=>{ctx.drawImage(img,d.x,d.y,d.w,d.h);if(--pending===0)dl(ec);};
-    img.src=d.src;
+  return new Promise(resolve=>{
+    if(!draws.length){resolve(ec);return;}
+    let pending=draws.length;
+    draws.forEach(d=>{
+      const img=new Image();
+      img.onload=()=>{ctx.drawImage(img,d.x,d.y,d.w,d.h);if(--pending===0)resolve(ec);};
+      img.src=d.src;
+    });
   });
+}
+
+document.getElementById('btnExport').onclick=async()=>{
+  const pages=buildPageDraws();
+  if(!pages.length)return;
+  const visiblePageIdx=getCurrentPageIdx();
+  const ec=await renderPageToCanvas(pages[visiblePageIdx]||pages[0]);
+  dl(ec, visiblePageIdx+1);
 };
 
-function dl(c){
+document.getElementById('btnExportAll').onclick=async()=>{
+  const pages=buildPageDraws();
+  for(let i=0;i<pages.length;i++){
+    const ec=await renderPageToCanvas(pages[i]);
+    dl(ec, i+1);
+    if(i<pages.length-1)await new Promise(r=>setTimeout(r,300));
+  }
+};
+
+function getCurrentPageIdx(){
+  const wrap=document.getElementById('canvasWrap');
+  const pageEls=Array.from(pagesWrap.children).filter(c=>c!==comp);
+  let best=0, bestDist=Infinity;
+  pageEls.forEach((el,i)=>{
+    const rect=el.getBoundingClientRect();
+    const wrapRect=wrap.getBoundingClientRect();
+    const dist=Math.abs(rect.top-wrapRect.top);
+    if(dist<bestDist){bestDist=dist;best=i;}
+  });
+  return best;
+}
+
+function dl(c, pageNum=1){
   const a=document.createElement('a');
   a.href=c.toDataURL('image/png');
-  a.download=`ratio-grid-${canvasW}x${canvasH}.png`;
+  a.download=`ratio-grid-p${pageNum}-${canvasW}x${canvasH}.png`;
   a.click();
 }
 

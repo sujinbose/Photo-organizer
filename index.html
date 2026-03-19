@@ -157,6 +157,17 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
 
 @keyframes rowIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .photo-row{animation:rowIn .25s ease both}
+/* MERGED ROW SETTINGS CARD */
+.mg-card{background:var(--s2);border:1px solid #f0a06050;border-radius:6px;overflow:hidden;margin-bottom:6px}
+.mg-card-head{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#1e1a14;border-bottom:1px solid #f0a06030}
+.mg-card-title{font-family:'Unbounded',sans-serif;font-size:10px;font-weight:600;color:#f0a060}
+.mg-card-keys{font-size:9px;color:var(--mu);flex:1}
+.mg-card-rm{background:none;border:none;color:var(--mu);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:2px;transition:color .15s}
+.mg-card-rm:hover{color:var(--acc3)}
+.mg-card-thumbs{display:flex;gap:2px;padding:6px 10px;flex-wrap:wrap;background:#18140d;border-bottom:1px solid #f0a06020}
+.mg-card-ctrl{padding:8px 10px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.mg-list{display:flex;flex-direction:column;gap:0}
+
 /* PAGE DIVIDER */
 .page-divider{position:relative;display:flex;align-items:center;gap:10px;margin:14px 0 6px}
 .page-divider-line{flex:1;height:1px;background:var(--bd2)}
@@ -300,6 +311,12 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Mono',monospace;height
         </div>
       </div>
 
+      <!-- Merged row settings -->
+      <div class="sec" id="mergedSettingsSec" style="display:none">
+        <div class="sec-title">Merged Row Settings</div>
+        <div class="mg-list" id="mgList"></div>
+      </div>
+
       <!-- Row groups -->
       <div class="sec">
         <div class="sec-title">Ratio Rows — drag to reorder</div>
@@ -351,6 +368,7 @@ let rowOrder = []; // ratioKey order
 // fit: 'fill-width' | 'fixed-h' | 'fixed-w'
 let rowSettings = {};
 let mergeGroups = []; // array of arrays of rk keys merged together
+let mergeSettings = {}; // mergeId -> {fit,rowH,gap,count,max,sortBy,align}
 
 const RATIO_TABLE = {
   '1:1':1,'4:3':4/3,'3:4':3/4,'16:9':16/9,'9:16':9/16,
@@ -399,6 +417,13 @@ document.getElementById('defFit').addEventListener('change',e=>{
 function getRowSettings(rk){
   return rowSettings[rk] || {...defSettings()};
 }
+function getMergeId(keys){ return keys.slice().sort().join('|'); }
+function getMergeSettings(keys){
+  const id=getMergeId(keys);
+  if(!mergeSettings[id]) mergeSettings[id]={...defSettings(),sortBy:'upload',align:'top'};
+  return mergeSettings[id];
+}
+
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CANVAS
@@ -588,6 +613,7 @@ function rebuildOrder(){
   // clean up mergeGroups
   mergeGroups=mergeGroups.map(g=>g.filter(k=>seen.has(k))).filter(g=>g.length>1);
   renderMergeCbs();
+  renderMergeSettings();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -627,7 +653,13 @@ function computeRows(){
     if(!combined.length)return;
 
     const rk=keys[0]; // representative key
-    const rs=getRowSettings(rk);
+    const rs=entry.type==='merged'?getMergeSettings(keys):getRowSettings(rk);
+    if(entry.type==='merged'){
+      const sb=rs.sortBy||'upload';
+      if(sb==='ratio-asc') combined.sort((a,b)=>a.ratio-b.ratio);
+      else if(sb==='ratio-desc') combined.sort((a,b)=>b.ratio-a.ratio);
+      else if(sb==='group'){ const ord=keys; combined.sort((a,b)=>ord.indexOf(a.rk)-ord.indexOf(b.rk)); }
+    }
     const g=rs.gap, fit=rs.fit, maxN=rs.max||combined.length;
     const clr=entry.type==='merged'?'#f0a060':color(rk);
     const rkLabel=keys.length>1?keys.join('+'):rk;
@@ -656,7 +688,7 @@ function computeRows(){
         rowH=Math.round(photoW/chunk[0].ratio);
       }
       const fitLabel=fit==='fill-width'?'fill-w':fit==='fit-count'?`${rs.count||3}/row`:fit==='fixed-h'?'fixed-h':'fixed-w';
-      allRows.push({photos:chunk, widths, rowH, g, rk, rkLabel, rs, clr, fitLabel, n});
+      allRows.push({photos:chunk, widths, rowH, g, rk, rkLabel, rs, clr, fitLabel, n, align:rs.align||'top'});
     });
   });
   return allRows;
@@ -701,6 +733,7 @@ function arrange(){
       rowEl.style.top=Math.round(yPx*zoom)+'px';
       rowEl.style.left=Math.round(row.g*zoom)+'px';
       rowEl.style.gap=Math.round(row.g*zoom)+'px';
+      rowEl.style.alignItems=row.align==='center'?'center':row.align==='bottom'?'flex-end':'flex-start';
 
       const badge=document.createElement('div');
       badge.className='row-badge';
@@ -856,6 +889,126 @@ function renderRGList(){
 }
 
 
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MERGED ROW SETTINGS CARDS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function renderMergeSettings(){
+  const sec=document.getElementById('mergedSettingsSec');
+  const list=document.getElementById('mgList');
+  list.innerHTML='';
+  if(!mergeGroups.length){sec.style.display='none';return;}
+  sec.style.display='';
+
+  const photosByRk={};
+  rowOrder.forEach(k=>{photosByRk[k]=[];});
+  photos.forEach(p=>{if(photosByRk[p.rk])photosByRk[p.rk].push(p);});
+
+  mergeGroups.forEach((keys,mi)=>{
+    const id=getMergeId(keys);
+    const rs=getMergeSettings(keys);
+    const allPh=keys.flatMap(k=>photosByRk[k]||[]);
+
+    const card=document.createElement('div');
+    card.className='mg-card';
+
+    // Head
+    const head=document.createElement('div');
+    head.className='mg-card-head';
+    const keySpans=keys.map(k=>'<span style="color:'+color(k)+'">'+k+'</span>').join(' + ');
+    head.innerHTML='<span class="mg-card-title">Merged '+( mi+1)+'</span><span class="mg-card-keys">'+keySpans+'</span><button class="mg-card-rm" data-mi="'+mi+'" title="Split">✕</button>';
+    head.querySelector('.mg-card-rm').onclick=function(e){
+      const idx=parseInt(e.target.dataset.mi);
+      mergeGroups.splice(idx,1);
+      renderMergeCbs(); renderMergeSettings(); renderRGList(); arrange();
+    };
+    card.appendChild(head);
+
+    // Thumbs
+    const thumbs=document.createElement('div');
+    thumbs.className='mg-card-thumbs';
+    allPh.slice(0,8).forEach(function(p){
+      const img=document.createElement('img');
+      img.className='rg-t'; img.src=p.src;
+      img.style.width=Math.round(p.ratio*22)+'px';
+      thumbs.appendChild(img);
+    });
+    if(allPh.length>8){
+      const sp=document.createElement('span');
+      sp.style.cssText='font-size:9px;color:var(--mu);align-self:center;margin-left:3px';
+      sp.textContent='+' +(allPh.length-8);
+      thumbs.appendChild(sp);
+    }
+    card.appendChild(thumbs);
+
+    // Controls
+    const ctrl=document.createElement('div');
+    ctrl.className='mg-card-ctrl';
+    ctrl.innerHTML=
+      '<div class="rc-row"><span class="rc-label">Fit mode</span>'+
+      '<select class="rc-select" data-mgid="'+id+'" data-key="fit">'+
+        '<option value="fill-width"'+(rs.fit==='fill-width'?' selected':'')+'>Fill canvas width</option>'+
+        '<option value="fit-count"'+(rs.fit==='fit-count'?' selected':'')+'>Fit N images/row</option>'+
+        '<option value="fixed-h"'+(rs.fit==='fixed-h'?' selected':'')+'>Fixed row height</option>'+
+        '<option value="fixed-w"'+(rs.fit==='fixed-w'?' selected':'')+'>Fixed photo width</option>'+
+      '</select></div>'+
+      '<div class="rc-row" id="mgcount-'+id+'" style="'+(rs.fit==='fit-count'?'':'display:none')+'">'+
+        '<span class="rc-label">N / row</span>'+
+        '<input type="number" class="rc-input" data-mgid="'+id+'" data-key="count" min="1" max="40" value="'+(rs.count||3)+'" style="width:56px;flex:none">'+
+        '<span class="rc-unit" style="font-size:9px;margin-left:4px;color:#f0a060">imgs</span></div>'+
+      '<div class="rc-row" id="mgslider-'+id+'" style="'+(rs.fit==='fit-count'?'display:none':'')+'">'+
+        '<span class="rc-label" id="mglbl-'+id+'">'+(rs.fit==='fixed-w'?'Photo W':'Row H')+'</span>'+
+        '<input type="range" class="rc-slider" data-mgid="'+id+'" data-key="rowH" min="40" max="2000" step="10" value="'+rs.rowH+'" style="accent-color:#f0a060">'+
+        '<span class="rc-slval" id="mgval-'+id+'" style="color:#f0a060">'+rs.rowH+'px</span></div>'+
+      '<div class="rc-row">'+
+        '<span class="rc-label">Gap</span>'+
+        '<input type="range" class="rc-slider" data-mgid="'+id+'" data-key="gap" min="0" max="100" step="1" value="'+rs.gap+'" style="accent-color:#f0a060">'+
+        '<span class="rc-slval" id="mggap-'+id+'" style="color:#f0a060">'+rs.gap+'px</span></div>'+
+      '<div class="rc-row">'+
+        '<span class="rc-label">Max/row</span>'+
+        '<input type="number" class="rc-input" data-mgid="'+id+'" data-key="max" min="0" max="40" value="'+(rs.max||0)+'" style="width:56px;flex:none">'+
+        '<span class="rc-unit" style="font-size:9px;margin-left:4px">0=∞</span></div>'+
+      '<div class="rc-row" style="margin-top:2px">'+
+        '<span class="rc-label">Sort by</span>'+
+        '<select class="rc-select" data-mgid="'+id+'" data-key="sortBy">'+
+          '<option value="upload"'     +((rs.sortBy||'upload')==='upload'    ?' selected':'')+'>Upload order</option>'+
+          '<option value="ratio-asc"'  +(rs.sortBy==='ratio-asc'             ?' selected':'')+'>Ratio ↑ narrow→wide</option>'+
+          '<option value="ratio-desc"' +(rs.sortBy==='ratio-desc'            ?' selected':'')+'>Ratio ↓ wide→narrow</option>'+
+          '<option value="group"'      +(rs.sortBy==='group'                 ?' selected':'')+'>Group by ratio</option>'+
+        '</select></div>'+
+      '<div class="rc-row">'+
+        '<span class="rc-label">Align</span>'+
+        '<select class="rc-select" data-mgid="'+id+'" data-key="align">'+
+          '<option value="top"'   +((rs.align||'top')==='top'   ?' selected':'')+'>Top</option>'+
+          '<option value="center"'+(rs.align==='center'         ?' selected':'')+'>Center</option>'+
+          '<option value="bottom"'+(rs.align==='bottom'         ?' selected':'')+'>Bottom</option>'+
+        '</select></div>';
+
+    ctrl.querySelectorAll('.rc-select,.rc-slider,.rc-input').forEach(function(inp){
+      inp.addEventListener('input',function(e){
+        var mgid=e.target.dataset.mgid, k=e.target.dataset.key;
+        if(!mergeSettings[mgid]) mergeSettings[mgid]={...defSettings(),sortBy:'upload',align:'top'};
+        var val=e.target.value;
+        if(k==='rowH'||k==='gap'||k==='max'||k==='count') val=parseInt(val)||0;
+        mergeSettings[mgid][k]=val;
+        if(k==='rowH'){
+          var lv=document.getElementById('mgval-'+mgid); if(lv)lv.textContent=val+'px';
+          var hl=document.getElementById('mglbl-'+mgid); if(hl)hl.textContent=mergeSettings[mgid].fit==='fixed-w'?'Photo W':'Row H';
+        }
+        if(k==='gap'){var gl=document.getElementById('mggap-'+mgid);if(gl)gl.textContent=val+'px';}
+        if(k==='fit'){
+          var hl=document.getElementById('mglbl-'+mgid); if(hl)hl.textContent=val==='fixed-w'?'Photo W':'Row H';
+          var cr=document.getElementById('mgcount-'+mgid); if(cr)cr.style.display=val==='fit-count'?'flex':'none';
+          var sr=document.getElementById('mgslider-'+mgid); if(sr)sr.style.display=val==='fit-count'?'none':'flex';
+        }
+        arrange();
+      });
+    });
+
+    card.appendChild(ctrl);
+    list.appendChild(card);
+  });
+}
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MERGE GROUPS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -888,6 +1041,7 @@ document.getElementById('btnMerge').onclick=()=>{
   mergeGroups=mergeGroups.filter(g=>!g.some(k=>checked.includes(k)));
   mergeGroups.push([...checked]);
   renderMergeCbs();
+  renderMergeSettings();
   renderRGList();
   arrange();
 };
@@ -937,7 +1091,7 @@ function bindDrag(card,rk){
 document.getElementById('btnRearrange').onclick=arrange;
 
 document.getElementById('btnClear').onclick=()=>{
-  photos=[]; rowOrder=[]; rowSettings={}; mergeGroups=[];
+  photos=[]; rowOrder=[]; rowSettings={}; mergeGroups=[]; mergeSettings={};
   Object.keys(rkColor).forEach(k=>delete rkColor[k]); ci=0;
   document.getElementById('plist').innerHTML='';
   document.getElementById('hCount').textContent='0';
@@ -947,6 +1101,7 @@ document.getElementById('btnClear').onclick=()=>{
   comp.style.display='none';
   renderRGList();
   renderMergeCbs();
+  renderMergeSettings();
   document.getElementById('hPages').textContent='1';
 };
 

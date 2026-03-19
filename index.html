@@ -447,7 +447,7 @@ function makePageEl(pageIdx){
   // Page label
   const lbl = document.createElement('div');
   lbl.className='page-divider';
-  lbl.innerHTML=`<div class="page-divider-line"></div><div class="page-divider-label">PAGE ${pageIdx+1}</div><div class="page-divider-line"></div>`;
+  lbl.innerHTML=`<div class="page-divider-line"></div><div class="page-divider-label" id="plbl-${pageIdx}">PAGE ${pageIdx+1}</div><div class="page-divider-line"></div>`;
   wrap.appendChild(lbl);
 
   // Ruler + canvas row
@@ -723,6 +723,13 @@ function arrange(){
 
   document.getElementById('hPages').textContent=pages.length;
   document.getElementById('hRows').textContent=allRows.length;
+
+  // Update each page label with photo count
+  pages.forEach((pageRows, pi)=>{
+    const photoCount=pageRows.reduce((sum,{row})=>sum+row.photos.length, 0);
+    const lbl=document.getElementById('plbl-'+pi);
+    if(lbl) lbl.textContent=`PAGE ${pi+1}  ·  ${photoCount} photo${photoCount!==1?'s':''}`;
+  });
 
   const meta=[];
   pages.forEach((pageRows, pi)=>{

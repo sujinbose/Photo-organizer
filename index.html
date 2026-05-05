@@ -1009,27 +1009,30 @@ function computeLayout(){
       let cellH, cellWidths, imgWidths, imgHeights;
 
       if(perRow===0){
-        // Fill width: all cells same height, widths proportional to ratio
+        // Fill width mode: all photos same height, widths proportional to aspect ratio
+        // so the whole row fills canvasW exactly
         const sumR=chunk.reduce((s,p)=>s+p.ratio,0);
         cellH=Math.max(10,Math.round((canvasW-g*(n+1))/sumR));
         cellWidths=chunk.map(p=>Math.round(p.ratio*cellH));
-        imgWidths=cellWidths.slice(); // photo fills its cell exactly (same ratio)
+        imgWidths=cellWidths.slice();
         imgHeights=chunk.map(()=>cellH);
       } else {
-        // Fixed N per row: equal cell widths, cellH from rowH setting
+        // Fixed N per row:
+        // Cell width = canvas divided equally among N slots.
+        // Cell height = rowH slider value (user controls this).
+        // Each photo is CONTAINED inside its cell (no crop, no stretch).
+        // White space fills the remainder of the cell.
         const cw=Math.max(1,Math.round((canvasW-g*(n+1))/n));
         cellWidths=chunk.map(()=>cw);
-        cellH=rowH; // uniform cell height from settings
-        // Fit photo INSIDE cell keeping aspect ratio (contain, no crop)
+        cellH=Math.max(10,rowH);
         imgWidths=[]; imgHeights=[];
         chunk.forEach(p=>{
-          const fitByW=cw, fitH_byW=Math.round(cw/p.ratio);
-          const fitByH=cellH, fitW_byH=Math.round(cellH*p.ratio);
-          if(fitH_byW<=cellH){
-            imgWidths.push(fitByW); imgHeights.push(fitH_byW);
-          } else {
-            imgWidths.push(fitW_byH); imgHeights.push(fitByH);
-          }
+          // Scale photo to fit inside cw×cellH, keeping aspect ratio
+          const scaleByW=cw/p.natW;
+          const scaleByH=cellH/p.natH;
+          const scale=Math.min(scaleByW,scaleByH);
+          imgWidths.push(Math.round(p.natW*scale));
+          imgHeights.push(Math.round(p.natH*scale));
         });
       }
       out.push({photos:chunk,cellWidths,cellH,imgWidths,imgHeights,gap:g,color,label,entryId:entry.id});
@@ -1138,16 +1141,23 @@ async function renderPage(pageRows){
     row.photos.forEach((ph,i)=>{
       const cw=row.cellWidths[i], ch=row.cellH;
       const iw=row.imgWidths[i], ih=row.imgHeights[i];
-      // Center photo in cell (contain, white pad around)
+      // Center photo in white cell (contain, no crop)
       const ox=Math.round((cw-iw)/2), oy=Math.round((ch-ih)/2);
-      draws.push({src:ph.src, x:x+ox, y:y+oy, w:iw, h:ih});
+      draws.push({src:ph.src, cx:x, cy:y, cw, ch, x:x+ox, y:y+oy, w:iw, h:ih});
       x+=cw+row.gap;
     });
   });
   return new Promise(res=>{
     if(!draws.length){res(ec);return;}
     let p=draws.length;
-    draws.forEach(d=>{const img=new Image();img.onload=()=>{ctx.drawImage(img,d.x,d.y,d.w,d.h);if(--p===0)res(ec);};img.src=d.src;});
+    draws.forEach(d=>{
+      // Draw white cell background so padding areas are white not transparent
+      ctx.fillStyle='#ffffff';
+      ctx.fillRect(d.cx,d.cy,d.cw,d.ch);
+      const img=new Image();
+      img.onload=()=>{ctx.drawImage(img,d.x,d.y,d.w,d.h);if(--p===0)res(ec);};
+      img.src=d.src;
+    });
   });
 }
 

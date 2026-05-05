@@ -24,6 +24,25 @@
   --blue: #2563a8;
   --sel: #e8f4ff;
   --sel-bd: #2563a8;
+  --canvas-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg: #111214;
+  --white: #18191e;
+  --ink: #e8e8e4;
+  --ink2: #a8a8a2;
+  --ink3: #5a5a56;
+  --line: #26282e;
+  --line2: #32343c;
+  --acc: #e8e8e4;
+  --green: #4caf82;
+  --red: #e05555;
+  --orange: #e07840;
+  --blue: #4a90d9;
+  --sel: #1a2535;
+  --sel-bd: #4a90d9;
+  --canvas-bg: #1e2028;
 }
 
 body {
@@ -316,7 +335,7 @@ body {
 .canvas-outer {
   position: relative; overflow: hidden;
   border: 1px solid var(--line); border-left: none; border-top: none;
-  background: #ffffff;
+  background: var(--canvas-bg);
 }
 
 /* Rows on canvas */
@@ -360,7 +379,7 @@ body {
 .canvas-cell {
   position: relative;
   flex-shrink: 0;
-  background: #ffffff;
+  background: var(--canvas-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -397,6 +416,7 @@ body {
     <button class="btn btn-outline" id="btnRearrange">↻ Refresh</button>
     <button class="btn btn-outline" id="btnExport">↓ Page</button>
     <button class="btn btn-dark" id="btnExportAll">↓ All Pages</button>
+    <button class="btn btn-outline" id="btnTheme" title="Toggle dark/light mode" style="font-size:13px;padding:4px 10px">☀</button>
     <button class="btn btn-ghost" id="btnClear">Clear</button>
   </div>
 </div>
@@ -570,7 +590,8 @@ function drawRuler(canvas, len, S, dir){
   canvas.height = dir==='h'?S:len;
   if(dir==='h') canvas.style.width=len+'px'; else canvas.style.height=len+'px';
   const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#fafaf8'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  ctx.fillStyle=isDark?'#18191e':'#fafaf8'; ctx.fillRect(0,0,canvas.width,canvas.height);
 
   // Choose cm step so labels aren't too dense
   const cmSteps=[0.1,0.2,0.5,1,2,5,10,20];
@@ -585,20 +606,20 @@ function drawRuler(canvas, len, S, dir){
     const isMain=Math.abs(Math.round(cm/cmStep)*cmStep - cm) < subStep*0.01;
     const isMid=Math.abs(Math.round(cm/cmStep*2)*cmStep/2 - cm) < subStep*0.01 && !isMain;
     const th=isMain?S*.5:isMid?S*.32:S*.16;
-    ctx.strokeStyle=isMain?'#b0afaa':isMid?'#d0cfc8':'#e4e3dc';
+    ctx.strokeStyle=isMain?(isDark?'#40424a':'#b0afaa'):isMid?(isDark?'#2c2e36':'#d0cfc8'):(isDark?'#222428':'#e4e3dc');
     ctx.lineWidth=isMain?1:.5;
     ctx.beginPath();
     if(dir==='h'){
       ctx.moveTo(pos+.5,S-th); ctx.lineTo(pos+.5,S);
       if(isMain&&cm>0){
-        ctx.fillStyle='#8a8a84';
+        ctx.fillStyle=isDark?'#5a5a56':'#8a8a84';
         const lbl=Number.isInteger(cm)?cm+'':cm.toFixed(1);
         ctx.fillText(lbl,pos+2,1);
       }
     } else {
       ctx.moveTo(S-th,pos+.5); ctx.lineTo(S,pos+.5);
       if(isMain&&cm>0){
-        ctx.save(); ctx.fillStyle='#8a8a84';
+        ctx.save(); ctx.fillStyle=isDark?'#5a5a56':'#8a8a84';
         ctx.translate(S-th-1,pos+2); ctx.rotate(-Math.PI/2);
         const lbl=Number.isInteger(cm)?cm+'':cm.toFixed(1);
         ctx.fillText(lbl,0,0); ctx.restore();
@@ -1219,6 +1240,31 @@ document.getElementById('btnClear').onclick=()=>{
   document.getElementById('hPages').textContent='—';
   renderRowList(); arrange(); checkDuplicates();
 };
+
+// ═══════════════ THEME TOGGLE ═══════════════
+(function(){
+  const btn = document.getElementById('btnTheme');
+  const root = document.documentElement;
+  // Restore saved theme
+  if(localStorage.getItem('sps-theme')==='dark'){
+    root.setAttribute('data-theme','dark');
+    btn.textContent='☾';
+  }
+  btn.addEventListener('click',()=>{
+    const isDark = root.getAttribute('data-theme')==='dark';
+    if(isDark){
+      root.removeAttribute('data-theme');
+      btn.textContent='☀';
+      localStorage.setItem('sps-theme','light');
+    } else {
+      root.setAttribute('data-theme','dark');
+      btn.textContent='☾';
+      localStorage.setItem('sps-theme','dark');
+    }
+    // Redraw rulers for new background colour
+    arrange();
+  });
+})();
 
 // ═══════════════ INIT ═══════════════
 applyCanvas();
